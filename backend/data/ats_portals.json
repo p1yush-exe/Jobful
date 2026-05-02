@@ -1,0 +1,49 @@
+{
+  "title_filter": {
+    "positive": [
+      "backend",
+      "full stack",
+      "fullstack",
+      "python",
+      "data",
+      "ai"
+    ],
+    "negative": [
+      "intern",
+      "junior",
+      "ios",
+      "android",
+      "sales"
+    ]
+  },
+  "tracked_companies": [
+    {
+      "name": "Anthropic",
+      "careers_url": "https://job-boards.greenhouse.io/anthropic",
+      "api": "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true",
+      "enabled": true
+    },
+    {
+      "name": "Vercel",
+      "careers_url": "https://job-boards.greenhouse.io/vercel",
+      "api": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true",
+      "enabled": true
+    },
+    {
+      "name": "Supabase",
+      "careers_url": "https://jobs.ashbyhq.com/supabase",
+      "enabled": true
+    },
+    {
+      "name": "Mistral AI",
+      "careers_url": "https://jobs.lever.co/mistral",
+      "enabled": true
+    },
+    {
+      "name": "Cloudflare",
+      "careers_url": "https://boards.greenhouse.io/cloudflare",
+      "api": "https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs?content=true",
+      "enabled": true
+    }
+  ]
+}
