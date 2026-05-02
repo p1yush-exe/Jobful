@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context/auth-context";
 import { useJobTracker } from "@/context/job-tracker-context";
@@ -22,6 +22,42 @@ export function SiteHeader() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notifications = overview?.notifications ?? [];
   const hasUpdates = notifications.length > 0;
+  const notificationsContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    function onPointerDown(event: MouseEvent) {
+      if (!notificationsContainerRef.current) return;
+      if (notificationsContainerRef.current.contains(event.target as Node)) return;
+      setNotificationsOpen(false);
+    }
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setNotificationsOpen(false);
+    }
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [notificationsOpen]);
+
+  function focusApplication(applicationId: string) {
+    setNotificationsOpen(false);
+    if (pathname !== "/dashboard") {
+      router.push(`/dashboard#app-${applicationId}`);
+      return;
+    }
+    const target = document.getElementById(`app-${applicationId}`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("ui-flash");
+      setTimeout(() => target.classList.remove("ui-flash"), 1600);
+    }
+  }
 
   async function handleLogout() {
     if (session) {
@@ -70,7 +106,7 @@ export function SiteHeader() {
               </span>
             ) : null}
             {session ? (
-              <div className="relative">
+              <div className="relative" ref={notificationsContainerRef}>
                 <button
                   type="button"
                   aria-label="Notifications"
@@ -102,7 +138,12 @@ export function SiteHeader() {
                       ) : (
                         <div className="space-y-3">
                           {notifications.slice(0, 6).map((notification) => (
-                            <div key={notification.application_id} className="ui-panel p-4">
+                            <button
+                              key={notification.application_id}
+                              type="button"
+                              onClick={() => focusApplication(notification.application_id)}
+                              className="ui-panel w-full cursor-pointer border-0 p-4 text-left transition hover:translate-y-[-1px]"
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="space-y-2">
                                   <p className="text-sm font-semibold">{notification.title}</p>
@@ -110,10 +151,10 @@ export function SiteHeader() {
                                   <p className="text-sm leading-6 text-[var(--text-soft)]">{notification.message}</p>
                                 </div>
                                 <span className={`ui-status ${notification.can_remove ? "ui-status-yellow" : "ui-status-red"}`}>
-                                  {notification.status}
+                                  {notification.kind === "interested_stale" ? "remove" : "watch"}
                                 </span>
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}

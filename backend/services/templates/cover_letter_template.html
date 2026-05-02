@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cover Letter - {{ profile.full_name }}</title>
+  <style>
+    @page { size: Letter; margin: 0.65in; }
+    body {
+      font-family: "Times New Roman", serif;
+      color: #111;
+      font-size: 11pt;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .header {
+      margin-bottom: 0.3in;
+    }
+    .name {
+      font-size: 16pt;
+      font-variant: small-caps;
+      letter-spacing: 0.08em;
+    }
+    .contact { font-size: 9.5pt; margin-top: 0.05in; }
+    .body { margin-top: 0.3in; }
+    p { margin: 0 0 0.14in 0; text-align: justify; }
+    .re { margin: 0.12in 0 0.18in; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="name">{{ profile.full_name }}</div>
+    <div class="contact">
+      {{ profile.email }}
+      {% if profile.phone %} | {{ profile.phone }}{% endif %}
+      {% if profile.linkedin %} | {{ profile.linkedin }}{% endif %}
+      {% if profile.github %} | {{ profile.github }}{% endif %}
+    </div>
+    <div class="contact">{{ today_date }}</div>
+  </div>
+
+  <div class="re">Re: {{ job.title }} at {{ job.company }}</div>
+
+  <div class="body">
+    <p>Dear Hiring Manager,</p>
+    <p>{{ body.hook }}</p>
+    <p>{{ body.link }}</p>
+    <p>{{ body.proof_1 }}</p>
+    <p>{{ body.proof_2 }}</p>
+    <p>{{ body.closing }}</p>
+    <p>Sincerely,</p>
+    <p>{{ profile.full_name }}</p>
+  </div>
+</body>
+</html>

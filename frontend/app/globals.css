@@ -584,6 +584,16 @@ textarea {
   }
 }
 
+.ui-flash {
+  animation: ui-flash-pulse 1.6s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes ui-flash-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47, 90, 65, 0.45); }
+  40% { box-shadow: 0 0 0 14px rgba(47, 90, 65, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 90, 65, 0); }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

@@ -1,7 +1,15 @@
+import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -44,3 +52,17 @@ app.include_router(cv_router, prefix="/api")
 app.include_router(search_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(applications_router, prefix="/api")
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_FRONTEND_ROOT = _REPO_ROOT / "frontend"
+_FRONTEND_OUT = _FRONTEND_ROOT / "out"
+
+if _FRONTEND_OUT.exists():
+    app.mount("/", StaticFiles(directory=_FRONTEND_OUT, html=True), name="frontend-export")
+
+
+@app.get("/")
+async def root():
+    if (_FRONTEND_OUT / "index.html").exists():
+        return FileResponse(_FRONTEND_OUT / "index.html")
+    return JSONResponse({"status": "jobful-api", "frontend": "next-server"})

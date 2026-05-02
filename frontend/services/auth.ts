@@ -72,7 +72,7 @@ export type Tag = {
   tag_name: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 const STORAGE_KEY = "jobful.session";
 export const SESSION_UPDATED_EVENT = "jobful:session-updated";
 
@@ -357,6 +357,8 @@ export type ExperiencePreview = {
 export type ProjectPreview = {
   name: string;
   description: string | null;
+  github_url: string | null;
+  demo_url: string | null;
   tag: string | null;
   keywords: string[];
 };
@@ -634,8 +636,38 @@ export type ProjectDetail = {
   project_id: string;
   name: string;
   description: string | null;
+  github_url: string | null;
+  demo_url: string | null;
   tag: string | null;
   keywords: string[];
+};
+
+export type ApplicationDetail = ApplicationRecord & {
+  current_cv_document_id: string | null;
+  current_cover_letter_document_id: string | null;
+};
+
+export type ApplicationDocument = {
+  document_id: string;
+  application_id: string;
+  document_type: "cv" | "cover_letter";
+  title: string;
+  generation_status: string;
+  is_current: boolean;
+  content_format: string;
+  content: string;
+  rendered_format: string | null;
+  rendered_storage_bucket: string | null;
+  rendered_storage_path: string | null;
+  rendered_mime_type: string | null;
+  rendered_file_size_bytes: number | null;
+  generation_params: Record<string, unknown> | null;
+  template_name: string | null;
+  provider: string | null;
+  model_name: string | null;
+  prompt_version: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export async function updateUserAccount(
@@ -663,6 +695,49 @@ export async function getCVData(accessToken: string): Promise<{ education: Educa
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+}
+
+export async function getApplicationDetail(accessToken: string, applicationId: string): Promise<ApplicationDetail> {
+  return requestJson<ApplicationDetail>(`/applications/${applicationId}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export async function getApplicationDocuments(accessToken: string, applicationId: string): Promise<{ items: ApplicationDocument[] }> {
+  return requestJson<{ items: ApplicationDocument[] }>(`/applications/${applicationId}/documents`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export async function generateApplicationDocument(
+  accessToken: string,
+  applicationId: string,
+  documentType: "cv" | "cover_letter",
+): Promise<{ document_id: string; application_id: string; document_type: "cv" | "cover_letter"; title: string; html: string; generation_params: Record<string, unknown>; status: string }> {
+  return requestJson<{ document_id: string; application_id: string; document_type: "cv" | "cover_letter"; title: string; html: string; generation_params: Record<string, unknown>; status: string }>(`/applications/${applicationId}/documents/generate`, {
+    method: "POST",
+    body: JSON.stringify({ document_type: documentType }),
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export async function compileApplicationDocument(
+  accessToken: string,
+  applicationId: string,
+  payload: { document_id: string; document_type: "cv" | "cover_letter"; html: string },
+): Promise<Blob> {
+  const response = await fetchWithRefresh(`/applications/${applicationId}/documents/compile`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(errorMessageFromResponse(data));
+  }
+  return await response.blob();
 }
 
 export async function generateTagsFromCV(accessToken: string): Promise<{ tags: Tag[] }> {

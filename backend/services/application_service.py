@@ -1,5 +1,6 @@
 import re
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -9,6 +10,11 @@ from fastapi import HTTPException, status
 
 from db.executor import execute, fetch_all, fetch_one, fetch_one_commit
 from db.query_loader import load_query
+
+
+_FRESHNESS_TTL = timedelta(hours=1)
+_FRESHNESS_TIMEOUT_SECONDS = 8
+_FRESHNESS_MAX_PARALLEL = 6
 
 
 _QUERIES_DIR = Path(__file__).resolve().parents[2] / "database" / "queries"
@@ -203,28 +209,41 @@ def get_application_summary_sql() -> str:
     return (_QUERIES_DIR / "get_application_summary.sql").read_text(encoding="utf-8")
 
 
+def _is_freshness_cache_valid(row: dict[str, Any]) -> bool:
+    last_checked = row.get("last_checked_at")
+    if last_checked is None:
+        return False
+    if isinstance(last_checked, str):
+        try:
+            last_checked = datetime.fromisoformat(last_checked.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+    if last_checked.tzinfo is None:
+        last_checked = last_checked.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - last_checked < _FRESHNESS_TTL
+
+
 def _refresh_application_freshness(connection, user_id: str) -> list[dict[str, Any]]:
     rows = fetch_all(connection, load_query("applications", "get_user_applications.sql"), (user_id,))
-    for row in rows:
-        freshness = _check_job_freshness(row)
+
+    rows_to_check = [row for row in rows if not _is_freshness_cache_valid(row)]
+    if not rows_to_check:
+        return rows
+
+    results: list[tuple[dict[str, Any], dict[str, Any] | None]] = []
+    with ThreadPoolExecutor(max_workers=_FRESHNESS_MAX_PARALLEL) as pool:
+        futures = {pool.submit(_check_job_freshness, row): row for row in rows_to_check}
+        for future, row in futures.items():
+            try:
+                results.append((row, future.result()))
+            except Exception:
+                results.append((row, None))
+
+    changed = False
+    for row, freshness in results:
         if freshness is None:
             continue
-        current_active = bool(row.get("is_active", True))
-        current_reason = str(row.get("stale_reason") or "") or None
-        if current_active == freshness["is_active"] and current_reason == freshness["stale_reason"]:
-            if freshness["checked"]:
-                execute(
-                    connection,
-                    load_query("jobs", "update_job_freshness.sql"),
-                    (
-                        freshness["is_active"],
-                        freshness["stale_reason"],
-                        freshness["is_active"],
-                        str(row["job_id"]),
-                    ),
-                )
-            continue
-
+        changed = True
         execute(
             connection,
             load_query("jobs", "update_job_freshness.sql"),
@@ -236,8 +255,10 @@ def _refresh_application_freshness(connection, user_id: str) -> list[dict[str, A
             ),
         )
 
-    refreshed = fetch_all(connection, load_query("applications", "get_user_applications.sql"), (user_id,))
-    return refreshed
+    if changed:
+        connection.commit()
+        return fetch_all(connection, load_query("applications", "get_user_applications.sql"), (user_id,))
+    return rows
 
 
 def _check_job_freshness(row: dict[str, Any]) -> dict[str, Any] | None:
@@ -253,7 +274,7 @@ def _check_job_freshness(row: dict[str, Any]) -> dict[str, Any] | None:
         },
     )
     try:
-        with urlopen(request, timeout=20) as response:
+        with urlopen(request, timeout=_FRESHNESS_TIMEOUT_SECONDS) as response:
             final_url = response.geturl() or url
             status_code = getattr(response, "status", None) or response.getcode()
             charset = response.headers.get_content_charset() or "utf-8"

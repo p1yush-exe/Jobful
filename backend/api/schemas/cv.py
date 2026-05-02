@@ -36,6 +36,8 @@ class ProjectPreview(BaseModel):
 
     name: str = ""
     description: str | None = None
+    github_url: str | None = None
+    demo_url: str | None = None
     tag: str | None = None
     keywords: list[str] = Field(default_factory=list)
 

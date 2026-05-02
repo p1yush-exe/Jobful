@@ -3,6 +3,8 @@ select
   a.user_id,
   a.job_id,
   a.status,
+  a.current_cv_document_id,
+  a.current_cover_letter_document_id,
   a.applied_at,
   a.updated_at,
   js.source_name as job_source,

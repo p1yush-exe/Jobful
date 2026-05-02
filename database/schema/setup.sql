@@ -174,6 +174,8 @@ create table user_projects (
   user_id uuid not null references users(user_id) on delete cascade,
   name text not null,
   description text,
+  github_url text,
+  demo_url text,
   tag_id uuid references canonical_tags(tag_id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -197,6 +199,8 @@ create table applications (
   user_id uuid not null references users(user_id) on delete cascade,
   job_id uuid not null references jobs(job_id) on delete cascade,
   status text not null check (status in ('interested', 'applying', 'applied', 'response', 'placed')),
+  current_cv_document_id uuid,
+  current_cover_letter_document_id uuid,
   applied_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, job_id)
@@ -281,6 +285,14 @@ alter table generated_documents
   add constraint generated_documents_based_on_version_fk
   foreign key (based_on_version_id) references document_versions(version_id) on delete set null;
 
+alter table applications
+  add constraint applications_current_cv_document_fk
+  foreign key (current_cv_document_id) references generated_documents(document_id) on delete set null;
+
+alter table applications
+  add constraint applications_current_cover_letter_document_fk
+  foreign key (current_cover_letter_document_id) references generated_documents(document_id) on delete set null;
+
 create table document_generation_runs (
   generation_run_id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(user_id) on delete cascade,
@@ -325,6 +337,9 @@ create index if not exists generated_documents_user_id_idx on generated_document
 create index if not exists generated_documents_job_id_idx on generated_documents (job_id);
 create index if not exists generated_documents_application_id_idx on generated_documents (application_id);
 create index if not exists generated_documents_status_idx on generated_documents (generation_status);
+create unique index if not exists generated_documents_one_current_per_application_type
+  on generated_documents (application_id, document_type)
+  where is_current = true;
 create index if not exists document_versions_document_id_idx on document_versions (document_id);
 create index if not exists document_generation_runs_user_id_idx on document_generation_runs (user_id);
 create index if not exists document_generation_runs_job_id_idx on document_generation_runs (job_id);

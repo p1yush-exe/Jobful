@@ -455,7 +455,9 @@ function JobsContent() {
                       <span className="flex items-center justify-center gap-2">
                         <Spinner />Searching…
                       </span>
-                    ) : selectedTagName ? `Search "${selectedTagName}"` : "Select a tag"}
+                    ) : !selectedTagName ? "Select a tag" : searched
+                      ? `Search more jobs under "${selectedTagName}"`
+                      : `Search "${selectedTagName}"`}
                   </button>
                 </div>
 

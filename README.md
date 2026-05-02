@@ -14,7 +14,9 @@ End-to-end autonomous job application system. Upload your CV, pick skill tags, s
 | AI / CV parsing | Groq LLM (`llama-3.3-70b-versatile`) via LangChain |
 | Job sources | JSearch (RapidAPI) + Adzuna |
 | Auth | Custom JWT — access + refresh token rotation |
-| Deployment | Frontend → GitHub Pages · Backend → Railway · DB → Supabase |
+| PDF generation | Playwright Chromium (HTML → PDF) |
+| Storage | Supabase Storage bucket (`generated-documents`) |
+| Deployment | Single Docker image → Railway · DB + Storage → Supabase |
 
 ---
 
@@ -27,9 +29,10 @@ End-to-end autonomous job application system. Upload your CV, pick skill tags, s
 - **Live job search** — queries JSearch + Adzuna per tag; deduplicates across sources; groups results by recency (24h / 7d / older)
 - **Two-tier job filter** — algorithmic tier (age, region, seniority, skill overlap) + Groq AI gate for borderline results; each card shows why it matched
 - **Application tracker** — track → applying → applied → response → placed; full status history in DB
-- **Stale-job detection** — background staleness checks on tracked roles; notification badge in header
-- **Dashboard** — profile snapshot, tracked roles, application stats per tag
-- **Document generation** — schema and storage layer ready for LaTeX CV + cover letter generation (wiring in progress)
+- **Stale-job detection** — parallel HTTP freshness checks (cached 1h) on every dashboard load; clickable notification dropdown in header that scrolls to the offending job
+- **Dashboard** — profile snapshot, tracked roles, application stats per tag, instant in-place updates on track/status-change
+- **Application workspace** (`/applications/[id]`) — generate tailored CV + cover letter via Groq, edit HTML in side-by-side editor, compile to PDF via Playwright, upload to Supabase Storage, download
+- **Regenerate flow** — old PDF deleted from Supabase before new one created (no archive bloat)
 
 ---
 
@@ -123,7 +126,22 @@ GROQ_MODEL=llama-3.3-70b-versatile
 RAPIDAPI_KEY=...
 ADZUNA_APP_ID=...
 ADZUNA_APP_KEY=...
+
+# Supabase Storage (PDF uploads)
+SUPABASE_URL=https://<ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...      # service_role, NOT anon
+SUPABASE_STORAGE_BUCKET=generated-documents
+
+# SMTP (verification emails)
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USERNAME=...
+SMTP_PASSWORD=...
+SMTP_FROM_EMAIL=...
+SMTP_USE_TLS=true
 ```
+
+> **Storage bucket:** Create a private bucket named `generated-documents` in Supabase dashboard → Storage before first PDF compile.
 
 ### 3. Frontend environment
 
@@ -180,15 +198,3 @@ npm run dev
 5. **Dashboard** → view tracked applications, update statuses, monitor stale listings
 
 ---
-
-## API Reference
-
-Full route map in `workflow.md`. Key groups:
-
-| Prefix | Purpose |
-|--------|---------|
-| `/api/auth/` | register, login, verify, refresh, logout |
-| `/api/onboarding/` | profile, CV upload/confirm, tag management |
-| `/api/profile/` | account update, CV data, stats |
-| `/api/jobs/` | live search with filter pipeline |
-| `/api/applications/` | track, list, status update, overview |

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, startTransition, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { useAuth } from "@/context/auth-context";
 import { getApplicationsOverview, type ApplicationsOverview } from "@/services/auth";
@@ -21,13 +21,11 @@ export function JobTrackerProvider({ children }: Readonly<{ children: React.Reac
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function refreshOverview() {
+  const refreshOverview = useCallback(async () => {
     if (!session) {
-      startTransition(() => {
-        setOverviewState(null);
-        setError(null);
-        setLoading(false);
-      });
+      setOverviewState(null);
+      setError(null);
+      setLoading(false);
       return;
     }
 
@@ -35,15 +33,13 @@ export function JobTrackerProvider({ children }: Readonly<{ children: React.Reac
     setError(null);
     try {
       const nextOverview = await getApplicationsOverview(session.access_token);
-      startTransition(() => {
-        setOverviewState(nextOverview);
-      });
+      setOverviewState(nextOverview);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load tracked jobs.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [session]);
 
   useEffect(() => {
     if (status !== "ready") {
@@ -56,7 +52,7 @@ export function JobTrackerProvider({ children }: Readonly<{ children: React.Reac
       return;
     }
     void refreshOverview();
-  }, [session, status]);
+  }, [session, status, refreshOverview]);
 
   return (
     <JobTrackerContext.Provider

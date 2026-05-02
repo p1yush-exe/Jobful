@@ -168,6 +168,8 @@ Return STRICT JSON (no prose, no markdown fences):
     {{
       "name": "string",
       "description": "string",
+      "github_url": "string or null",
+      "demo_url": "string or null",
       "tag": "one canonical tag",
       "keywords": ["lowercase tech keywords"]
     }}
@@ -304,6 +306,8 @@ def process_cv_upload(connection, user_id: str, file_bytes: bytes) -> dict[str, 
         if proj.get("tag") not in canonical_set:
             proj["tag"] = None
         proj.setdefault("name", "")
+        proj.setdefault("github_url", None)
+        proj.setdefault("demo_url", None)
         if proj.get("name") is None:
             proj["name"] = ""
         clean_projs.append(proj)
@@ -466,7 +470,14 @@ def store_confirmed_cv_data(connection, user_id: str, confirmed: dict[str, Any])
 
                     cursor.execute(
                         load_query("cv", "insert_project.sql"),
-                        (user_id, name, proj.get("description") or None, tag_id),
+                        (
+                            user_id,
+                            name,
+                            proj.get("description") or None,
+                            proj.get("github_url") or None,
+                            proj.get("demo_url") or None,
+                            tag_id,
+                        ),
                     )
                     project_id = cursor.fetchone()[0]
                     proj_count += 1

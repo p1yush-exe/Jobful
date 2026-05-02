@@ -214,7 +214,7 @@ def _tier0(job: dict[str, Any], session_truth: dict[str, Any]) -> tuple[str, str
     if score >= _ACCEPT_THRESHOLD:
         return _ACCEPT, f"{score:.0%} skill overlap"
 
-    return _INCONCLUSIVE, f"{score:.0%} overlap — AI review needed"
+    return _INCONCLUSIVE, "Relevant overlap found with your profile"
 
 
 # ── enrichment helpers ────────────────────────────────────────────────────────

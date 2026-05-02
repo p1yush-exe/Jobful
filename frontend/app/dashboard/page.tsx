@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -33,6 +34,7 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
+  const router = useRouter();
   const { session } = useAuth();
   const { overview, refreshOverview, loading: overviewLoading, error: overviewError } = useJobTracker();
 
@@ -64,6 +66,30 @@ function DashboardContent() {
       .finally(() => setLoadingProfile(false));
   }, [session]);
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    void refreshOverview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (overviewLoading || !overview) return;
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#app-")) return;
+    const id = hash.slice(1);
+    requestAnimationFrame(() => {
+      const target = document.getElementById(id);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("ui-flash");
+        setTimeout(() => target.classList.remove("ui-flash"), 1600);
+      }
+    });
+  }, [overviewLoading, overview]);
+
   async function handleStatusChange(applicationId: string, nextStatus: ApplicationStatus) {
     if (!session) {
       return;
@@ -87,10 +113,8 @@ function DashboardContent() {
     try {
       const result = await prepareTrackedApplication(session.access_token, item.application_id);
       await refreshOverview();
-      setActionMessage("Custom CV and cover letter generation placeholder is wired. The real generator can take over this apply step next.");
-      if (result.apply_url) {
-        window.open(result.apply_url, "_blank", "noopener,noreferrer");
-      }
+      setActionMessage("Open the application workspace to generate the tailored CV and cover letter.");
+      router.push(`/applications/${result.application_id}`);
     } catch (err) {
       setActionMessage(err instanceof Error ? err.message : "Could not move this job into apply mode.");
     } finally {
@@ -196,6 +220,7 @@ function DashboardContent() {
                         onStatusChange={handleStatusChange}
                         onPrepareApply={handlePrepareApply}
                         onRemove={handleRemoveStale}
+                        showWorkspaceLink={false}
                       />
                     ))}
                   </div>
@@ -222,7 +247,20 @@ function DashboardContent() {
                 ) : (
                   <div className="space-y-4">
                     {notifications.map((notification, index) => (
-                      <div key={notification.application_id} className="ui-panel ui-stagger" style={{ ["--index" as string]: index }}>
+                      <button
+                        key={notification.application_id}
+                        type="button"
+                        onClick={() => {
+                          const target = document.getElementById(`app-${notification.application_id}`);
+                          if (target) {
+                            target.scrollIntoView({ behavior: "smooth", block: "center" });
+                            target.classList.add("ui-flash");
+                            setTimeout(() => target.classList.remove("ui-flash"), 1600);
+                          }
+                        }}
+                        className="ui-panel ui-stagger w-full cursor-pointer border-0 text-left transition hover:translate-y-[-1px]"
+                        style={{ ["--index" as string]: index }}
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-2">
                             <p className="text-sm font-semibold">{notification.title}</p>
@@ -236,7 +274,7 @@ function DashboardContent() {
                             {notification.kind === "interested_stale" ? "remove" : "watch"}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -272,6 +310,7 @@ function DashboardContent() {
                         onStatusChange={handleStatusChange}
                         onPrepareApply={handlePrepareApply}
                         onRemove={handleRemoveStale}
+                        showWorkspaceLink
                       />
                     ))}
                   </div>
@@ -379,6 +418,7 @@ function DashboardContent() {
                       onStatusChange={handleStatusChange}
                       onPrepareApply={handlePrepareApply}
                       onRemove={handleRemoveStale}
+                      showWorkspaceLink={false}
                     />
                   ))}
                 </div>
@@ -400,6 +440,7 @@ function TrackedJobCard({
   onStatusChange,
   onPrepareApply,
   onRemove,
+  showWorkspaceLink,
 }: {
   item: ApplicationRecord;
   index: number;
@@ -409,12 +450,13 @@ function TrackedJobCard({
   onStatusChange: (applicationId: string, nextStatus: ApplicationStatus) => Promise<void>;
   onPrepareApply: (item: ApplicationRecord) => Promise<void>;
   onRemove: (applicationId: string) => Promise<void>;
+  showWorkspaceLink?: boolean;
 }) {
   const canPrepareApply = item.status === "interested" && item.is_active;
   const canRemove = item.status === "interested" && !item.is_active;
 
   return (
-    <div className="ui-panel ui-stagger" style={{ ["--index" as string]: index }}>
+    <div id={`app-${item.application_id}`} className="ui-panel ui-stagger" style={{ ["--index" as string]: index }}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3 flex-1">
           <div>
@@ -461,6 +503,12 @@ function TrackedJobCard({
               </a>
             ) : null}
 
+            {showWorkspaceLink ? (
+              <Link href={`/applications/${item.application_id}`} className="ui-button ui-button-secondary">
+                Open workspace
+              </Link>
+            ) : null}
+
             {canPrepareApply ? (
               <button
                 type="button"
@@ -485,9 +533,9 @@ function TrackedJobCard({
             ) : null}
           </div>
 
-          {canPrepareApply ? (
+          {showWorkspaceLink ? (
             <p className="max-w-xs text-right text-xs text-[var(--text-dim)]">
-              Placeholder apply path is active here. Your custom CV and cover letter generator can attach to this button next.
+              Open the workspace to regenerate the tailored CV or cover letter for this role.
             </p>
           ) : null}
         </div>

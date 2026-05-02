@@ -48,7 +48,7 @@ const EMPTY_EXP: ExperiencePreview = {
 };
 
 const EMPTY_PROJ: ProjectPreview = {
-  name: "", description: null, tag: null, keywords: [],
+  name: "", description: null, github_url: null, demo_url: null, tag: null, keywords: [],
 };
 
 export default function OnboardingPage() {
@@ -142,6 +142,8 @@ function EditProfileContent() {
         setProjects(cvData.projects.map((p) => ({
           name: p.name,
           description: p.description,
+          github_url: p.github_url ?? null,
+          demo_url: p.demo_url ?? null,
           tag: p.tag,
           keywords: p.keywords ?? [],
         })));
@@ -243,7 +245,14 @@ function EditProfileContent() {
         setExperiences(preview.experiences);
       }
       if (preview.projects?.length) {
-        setProjects(preview.projects);
+        setProjects(preview.projects.map((p) => ({
+          name: p.name,
+          description: p.description,
+          github_url: p.github_url ?? null,
+          demo_url: p.demo_url ?? null,
+          tag: p.tag,
+          keywords: p.keywords ?? [],
+        })));
       }
       setDetectedCvEmail(preview.contact_details.email);
       if (preview.contact_details.phone_number) setPhoneNumber(preview.contact_details.phone_number);
@@ -672,6 +681,24 @@ function EditProfileContent() {
                       <div>
                         <label className="ui-label block">Description</label>
                         <textarea className="ui-textarea" value={proj.description ?? ""} onChange={(e) => updateProj(i, "description", e.target.value || null)} />
+                      </div>
+                      <div>
+                        <label className="ui-label block">GitHub URL</label>
+                        <input
+                          className="ui-input"
+                          value={proj.github_url ?? ""}
+                          onChange={(e) => updateProj(i, "github_url", e.target.value || null)}
+                          placeholder="https://github.com/username/repo"
+                        />
+                      </div>
+                      <div>
+                        <label className="ui-label block">Hosted / demo URL</label>
+                        <input
+                          className="ui-input"
+                          value={proj.demo_url ?? ""}
+                          onChange={(e) => updateProj(i, "demo_url", e.target.value || null)}
+                          placeholder="https://project-demo.example"
+                        />
                       </div>
                       <div>
                         <label className="ui-label block">Tech keywords (comma-separated)</label>

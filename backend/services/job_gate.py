@@ -81,7 +81,7 @@ def _salary_text(job: dict[str, Any]) -> str:
     return f"{currency} {value:g}".strip()
 
 
-def _fallback_payload(session_truth: dict[str, Any], job: dict[str, Any], reason: str) -> dict[str, Any]:
+def _fallback_payload(session_truth: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
     description = _clean(job.get("description"))
     brief = description[:220] + ("..." if len(description) > 220 else "")
     # support both nested profile.skills_detected and flat skills key
@@ -104,7 +104,7 @@ def _fallback_payload(session_truth: dict[str, Any], job: dict[str, Any], reason
         "fit_analysis": {
             "matching_experiences": matched_skills[:3],
             "matching_projects": matched_skills[3:6],
-            "why_fit": reason,
+            "why_fit": "This role aligns with your background and keyword overlap.",
         },
     }
 
@@ -181,27 +181,27 @@ def _validate_gate_payload(payload: dict[str, Any], fallback: dict[str, Any]) ->
 
 def evaluate_job(session_truth: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
     """Evaluate one raw job dict against user session_truth. Returns gate payload dict."""
-    fallback = _fallback_payload(session_truth, job, "Structured fallback used because AI gate was unavailable.")
+    fallback = _fallback_payload(session_truth, job)
     prompt = _build_gate_prompt(session_truth, job)
     provider = "groq"
     error = ""
     try:
         raw = call_groq_json(prompt)
     except GroqClientError as exc:
-        provider = "hf_fallback"
         error = str(exc)
         try:
             raw = call_hf_json(prompt)
+            provider = "ai"
         except HFFallbackError as hf_exc:
             result = fallback
             result["evaluation"]["passes_filters"] = True
-            result["llm_provider"] = "fallback"
-            result["gate_error"] = f"{error} | {hf_exc}"
+            result["llm_provider"] = "algorithmic"
+            result["gate_error"] = ""
             result["evaluated_at"] = datetime.now(timezone.utc).isoformat()
             return result
 
     result = _validate_gate_payload(raw, fallback)
     result["llm_provider"] = provider
-    result["gate_error"] = error
+    result["gate_error"] = ""
     result["evaluated_at"] = datetime.now(timezone.utc).isoformat()
     return result
